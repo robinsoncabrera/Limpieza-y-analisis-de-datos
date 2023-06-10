@@ -1,0 +1,765 @@
+---
+title: "Tipología y Ciclo de Vida de los Datos: PRA2: Limpieza y análisis de datos"
+author: "James Humberstone, Robinson Cabrera"
+date: '2023-06-10'
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: header.html
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Contexto
+
+Según la Organización Panamericana de la Salud (OPS) cada año mueren más personas por [enfermedades cardiovasculares](https://www.paho.org/es/temas/enfermedades-cardiovasculares) (ECV) que por cualquier otra causa y más de tres cuartas partes de estas muertes ocurren en países de ingresos medianos y bajos.
+
+[Mayo Clinic](https://www.mayoclinic.org/es-es/diseases-conditions/heart-attack/symptoms-causes/syc-20373106) explica en su sitio web que el ataque cardíaco o infarto mediocardio se produce cuando se bloquea o se reduce gravemente el flujo de sangre que va al corazón. Por lo general, la obstrucción se debe la acumulación de grasa, colesterol y otras sustancias en las arterias del corazón (coronarias).
+
+Entre los factores de riesgo se encuentra: la *edad*, la *presión arterial alta*, *niveles elevados de colesterol* y *diabetes*.
+
+Algunos ataques cardíacos se producen de repente. El dolor en el pecho (**angina**) que persiste y no desaparece con el descanso puede ser un signo de alerta temprana. La *angina de pecho* es el resultado de un descenso temporal del flujo sanguíneo hacia el corazón.
+
+Una forma de clasificar los ataques cardíacos es por medio del resultado de un electrocardiograma, si muestra algún cambio específico en la elevación del segmento ST.
+
+Para comprender mejor los factores de riesgo se dará respuesta a las siguientes preguntas de investigación:
+
+## Preguntas de investigación.
+
+-   ¿Existe una diferencia significativa en la presión arterial entre hombres y mujeres?
+
+-   ¿Hay una asociación entre el tipo de angina y el resultado del electrocardiograma?
+
+-   ¿El tipo de angina que padece un paciente tiene un efecto en su presión arterial?
+
+-   ¿Cómo influyen la edad, el sexo, el colesterol, la presión arterial y la glucemia en los ataques cardíacos?
+
+## Presentación del conjunto de datos
+
+El conjunto de datos incluye factores de riesgo de pacientes que tienen una baja o alta probabilidad de padecer ataques cardíacos. El conjunto de datos se encuentra disponible en [heart-attack-analysis-prediction-dataset](https://www.kaggle.com/datasets/rashikrahmanpritom/heart-attack-analysis-prediction-dataset) y fue recopilado de la web mediante scrapping por el autor.
+
+```{r message= FALSE, warning=FALSE}
+#cargamos el conjunto de datos
+data<-read.csv("data/heart.csv",header=T,sep=",")
+#exploramos el número de observaciones y la cantidad de variables
+str(data)
+```
+
+**En el conjunto de datos tiene 303 observaciones y 14 variables**. Son 5 variables numéricas ("age", "trtbps","chol","thalachh", "oldpeak") y 9 variables categóricas ("sex","cp","fbs","restecg","exng","slp","caa", thall","output"), incluyendo la variable de respuesta **output**; por tanto, se pueden aplicar modelos de aprendizaje supervisado, y dado que la variable objetivo es categórica se pueden aplicar algoritmos de clasificación.
+
+```{r message= FALSE, warning=FALSE}
+#conversión de variables a factor
+n <- c("sex","cp","fbs","restecg","exng","slp","thall","output")
+data[, n] <- lapply(data[, n], as.factor)
+#validación de la transformación
+str(data[, n])
+```
+
+Para una mejor compresión de las variables se presenta el diccionario de datos.
+
+## Diccionario de datos
+
+El diccionario de datos fue obtenido de la página de inicio del conjunto de datos y de la discusión con ID [234843](https://www.kaggle.com/datasets/rashikrahmanpritom/heart-attack-analysis-prediction-dataset/discussion/234843).
+
+**VARIABLES**
+
+-   **age**: Edad del paciente en años.
+
+-   **sex**: Sexo del paciente. Variable binaria codificada con los valores 0 (mujer) y 1 (hombre).
+
+-   **cp**: Indica el tipo de angina que ha padecido el paciente. Variable categórica con cuatro niveles. **1** indica **angina típica**, **2** indica **angina atípica**, **3** indica **dolor no anginoso** y **0** indica **asintomático**.
+
+-   **trtbps**: Presión arterial en reposo (mm Hg) que presentó el paciente al ingresar al hospital.
+
+-   **chol**: Cantidad de colesterol del paciente (mg/dl).
+
+-   **fbs**: Indica si el paciente tiene azúcar en la sangre. Es el resultado de medir el valor de glucemia en ayuna. Si el valor es mayor a 120, existe azúcar en la sangre. Variable binaria codificada como **0 (falso)** y **1 (verdadero1)**.
+
+-   **restecg**: Indica el resultado del electrocardiograma. Variable categórica con tres niveles. **0** indica **normal**, **1** indica **Anomalía de la onda ST-T** y **2** indica **hipertrofia ventricular**.
+
+-   **thalachh**: Frecuencia cardíaca máxima alcanzada
+
+-   **exng**: Indica si la angina fue inducida por ejercicio. Variable binaria codificada como **0 (falso)** y **1 (verdadero1)**.
+
+-   **oldpeak**: Indica la elevación del segmento ST inducida por el ejercicio.
+
+-   **slp**: Indica la pendiente de la elevación del segmento ST inducida por el ejercicio. Variable categórica de tres niveles. **0** indica **descendente**, **1** indica **plano** y **2** indica **ascendente**.
+
+-   **caa**: Indica el número de arterias coronarias (0-3) que presentan obstrucciones.
+
+-   **thall**: Indica el resultado del test de *Thallium Stress*. Variable categórica de tres niveles. **1** indica **defecto fijo**, **2** indica **normal** y **3** indica **defecto reversible**.
+
+**VARIABLE OBJETIVO**
+
+-   **output**: Indica la probabilidad de padecer un ataque al corazón. Variable binaria de respuesta codificada con 0 y 1. **0** indica **menor probabilidad de padecer un ataque al corazón** y **1** indica **mayor probabilidad de padecer ataque al corazón**.
+
+# Integración y selección de datos
+
+Para dar respuesta a las preguntas de investigación se creara un subconjunto de datos con las variables a estudiar.
+
+Las variables a utilizar son: *edad*, *sexo*, *tipo de angina*, *presión arterial*, *nivel de colesterol*, *glucemia en la sangre*, *resultado de electrocardiograma*, *número de arterias coronarias obstruidas* y la *variable respuesta*.
+
+```{r message= FALSE, warning=FALSE}
+library(gmodels)
+library(dplyr)
+#selección de variables para dar respuesta a las preguntas
+variables <- c("age","sex","cp","trtbps","chol","fbs","restecg","caa","output")
+misDatos <- data %>% select(all_of(variables))
+```
+
+## Discretización
+
+Se crearán dos nuevas variables una para clasificar la presión arterial en *Normal (\<120)*, *Elevada (120-129)*, *Hipertensión nivel 1 (130-139)*, *Hipertensión nivel 2 (140-180)* y *Crisis de hipertensión (\> 180)*. La variable será codificada con los valores de 0 a 4 respectivamente. La clasificación está basada en la American Heart Association obtenidas del siguiente enlace: [Presión arterial nueva clasificación según la AHA](https://yoamoenfermeriablog.com/2018/01/26/presion-arterial-nuevos-valores/)
+
+La otra variable será para clasificar el nivel de colesterol en *deseable (\<200)*, *alto (200-239)* y *muy alto (\>239)*. La variable se codificará con los valores de 0 a 2 respectivamente. La clasificación se encuentra contenida en el siguiente enlace: [Niveles de colesterol](https://pedromartinnutricion.com/padezco-de-colesterol/)
+
+```{r message= FALSE, warning=FALSE}
+#creación de variable pa, para clasificar la presión arterial
+misDatos$pa <- 0
+misDatos$pa[(misDatos$trtbps >= 120 & misDatos$trtbps <= 129)] <- 1
+misDatos$pa[(misDatos$trtbps > 129 & misDatos$trtbps <= 139)] <-  2
+misDatos$pa[(misDatos$trtbps > 139 & misDatos$trtbps <= 180)]<- 3
+misDatos$pa[misDatos$trtbps > 180]<- 4
+
+#creación de variable nc, para clasificar el nivel de colesterol
+misDatos$nc <- 0
+misDatos$nc[(misDatos$chol >= 200 & misDatos$chol <= 239)] <- 1
+misDatos$nc[misDatos$chol > 239] <- 2
+
+#conversión de  nuevas variables a factor
+n <- c("pa","nc")
+misDatos[, n] <- lapply(misDatos[, n], as.factor)
+
+#muestra aleatoria de 10 registros
+set.seed(123)
+indices = sample(1:nrow(misDatos),10) 
+misDatos[indices,c("trtbps","pa","chol","nc")]
+```
+
+Se actualiza el diccionario de datos con las nuevas variables.
+
+**VARIABLES**
+
+-   **pa**: Variable categórica de 5 niveles. Indica si la presión arterial corresponde a: *Normal (0)*, *Elevada (1)*, *Hipertensión nivel 1 (2)*, *Hipertensión nivel 2 (3)* o *Crisis de hipertensión (4)*.
+
+-   **nc**: Variable categórica de 3 niveles. Indica si el nivel de colesterol corresponde a: *deseable (0)*, *alto (1)* o *muy alto (2)*.
+
+# Limpieza de datos
+
+## Valores atípicos de la variables cuantitativas: *age*, *trtbps*, *chol*, *caa*
+
+A continuación, se revisará la distribución de cada variable para identificar los valores atípicos y determinar si alguno es anómalo. Si el valor es anómalo se marcará como no disponible y se tratará posteriormente.
+
+### Variable Edad (age)
+
+```{r message= FALSE, warning=FALSE}
+#análisis de la variable age
+boxplot(misDatos$age, main="Distribución de la edad")
+#obtención de los valores atípicos de la variable age
+out <- boxplot.stats(misDatos$age)$out
+ids <- which(misDatos$age %in% out)
+misDatos[ids,"age"]
+```
+
+**Observación:**
+
+-   La variable no tiene valores atípicos.
+
+### Variable Presión arterial (trtbps)
+
+```{r message= FALSE, warning=FALSE}
+#análisis de la variable trtbps
+boxplot(misDatos$trtbps, main="Distribución de la presión arterial")
+#obtención de los valores atípicos de la variable trtbps
+out <- boxplot.stats(misDatos$trtbps)$out
+ids <- which(misDatos$trtbps %in% out)
+misDatos[ids,"trtbps"]
+```
+
+**Observaciones:**
+
+-   La variable tiene 9 valores atípicos, pero, **ninguno es un valor anómalo**.
+
+-   Según las tablas de presión arterial, los valores mayores a 180 representan una crisis hipertensiva.
+
+### Variable Colesterol (chol)
+
+```{r message= FALSE, warning=FALSE}
+#análisis de la variable chol
+boxplot(misDatos$chol, main="Distribución del colesterol")
+#obtención de los valores atípicos de la variable chol
+out <- boxplot.stats(misDatos$chol)$out
+ids <- which(misDatos$chol %in% out)
+misDatos[ids,"chol"]
+```
+
+**Observaciones:**
+
+-   La variable tiene 5 valores atípicos, pero, **ninguno es un valor anómalo**.
+
+-   Un valor por encima de 400 representa un trastorno genético, los pacientes sufren hipercolesterolemia aguda y sus niveles de colesterol son superiores a 700.
+
+### Variable Cantidad de coronarias obstruidas (caa)
+
+```{r message= FALSE, warning=FALSE}
+#análisis de la variable caa
+boxplot(misDatos$caa, main="Distribución de la cantidad de coronarias obstruidas")
+#obtención de los valores atípicos de la variable caa
+out <- boxplot.stats(misDatos$caa)$out
+ids <- which(misDatos$caa %in% out)
+misDatos[ids,"caa"]
+table(misDatos$caa)
+```
+
+**Observaciones:**
+
+-   El corazón tiene **3** arterias coronarias: *coronaria derecha*, *coronaria izquierda* e *interventricular anterior*; por tanto, valores mayores a 3 se consideran anómalos.
+
+-   La variable tiene *5 registros anómalos* ya que presentan un valor de 4, siendo el máximo posible 3.
+
+### Transformación de valores anómalos a nulos
+
+```{r message= FALSE, warning=FALSE}
+#transformar datos anómalos en NA para la variable caa
+misDatos$caa[misDatos$caa > 3] <- NA
+#verificación
+summary(misDatos$caa)
+table(misDatos$caa)
+```
+
+## Imputación de valores nulos
+
+```{r message= FALSE, warning=FALSE}
+#Contabilizar la cantidad de valores nulos en las variables 
+colSums(is.na(misDatos))
+```
+
+**observación**
+
+-   Se observa que la variable *caa* tiene 5 valores nulos.
+
+**Para la imputación de los valores se hará uso del algoritmo *kNN* del paquete *VIM*.**
+
+```{r message= FALSE, warning=FALSE}
+#obtenemos los índices de los registros que tienen valores nulos en caa
+idsNA <- which(is.na(misDatos$caa))
+misDatos[idsNA,] #impresión de los registros previo a la imputación 
+
+if (!require(VIM)) install.packages("VIM")
+#imputación 
+datos.sin.NA <-kNN(misDatos, variable="caa", k=11)
+misDatos[idsNA,]$caa <- datos.sin.NA[datos.sin.NA$caa_imp == TRUE,]$caa
+#validación de la transformación
+misDatos[idsNA,]
+```
+
+```{r message= FALSE, warning=FALSE}
+#Contabilizar la cantidad de valores nulos en las variables 
+colSums(is.na(misDatos))
+```
+
+**observación**
+
+-   Se observa que la variable *caa* luego de haber implementado el algoritmo kn no presenta valores nulos.
+
+# Análisis de los datos
+
+## Estudio descriptivo
+
+Para tener una mejor compresión de los datos se graficarán las variables respecto a la variable objetivo.
+
+```{r message= FALSE, warning=FALSE}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+
+
+grid.newpage()
+
+g1 <- ggplot(misDatos,aes(output, fill=output))+geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Resultado", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Distribución de resultado")
+
+g2 <- ggplot(misDatos,aes(sex,fill=output))+ geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Sexo", y="Porcentaje")+ guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646"))  + ggtitle("Sexo por resultado")
+
+grid.arrange(g1,g2,ncol=2)
+```
+
+**Observaciones:**
+
+-   La **variable respuesta (output)** se encuentra desbalanceada, tiene 45% de observaciones con 0 y 55% de observaciones con 1.
+
+-   La variable **sex** tiene una distribución de: *32% mujeres* y *68% hombres*.
+
+-   El *75% de las mujeres* tiene una alta probabilidad de sufrir ataques cardíacos, mientras que los hombres que también tienen una alta probabilidad de sufrirlo representan el *45%*.
+
+Continuamos observando las distribución de las variables *cp* y *fbs*.
+
+```{r message= FALSE, warning=FALSE}
+g3 <- ggplot(misDatos,aes(cp,fill=output)) + geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Tipo de angina", y="Porcentaje")+ guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Tipo de angina por resultado")
+
+g4 <- ggplot(misDatos,aes(fbs,fill=output)) + geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Glucemia en ayuna", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Glucemia por resultado")
+
+grid.arrange(g3,g4,ncol=2)
+```
+
+**Observaciones:**
+
+-   La distribución de la variable **Tipo de angina (cp)** es *47% asintomático*, *16% angina típica*, *29% angina atípica* y *8% dolor no anginoso*.
+
+-   Aproximadamente el *25% de los pacientes son asintomáticos* tienen alta probabilidad de padecer ataques cardíacos. Respecto a los *pacientes que ha tendido angina atípica, dolor no anginoso o han sido asintomáticos*, más del *70%* de ellos tiene alta posibilidad de padecer ataques cardíacos.
+
+-   La distribución de la variable **Glucemia en ayuno (fbs)** es *85% pacientes con test negativos* y *15% pacientes con tes positivos*.
+
+-   Aparentemente la *glucemia en ayuno* no incide en la variable respuesta, ya que en ambas clases de la variable glucemia las observaciones se reparten en un 50% sobre las clases de la variable respuesta.
+
+Continuamos observando las distribuciones de las variables *restecg* y *caa*.
+
+```{r message= FALSE, warning=FALSE}
+g5 <- ggplot(misDatos,aes(restecg,fill=output))+geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Electrocardiograma", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Electrocardiograma por resultado")
+
+g6 <- ggplot(misDatos,aes(caa,fill=output))+geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Coronarias obstruidas", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Coronarias por resultado")
+
+grid.arrange(g5,g6,ncol=2)
+```
+
+**Observaciones:**
+
+-   La distribución de la variable **Resultado del electrocardiograma (restecg)** es *48% normal*, *50% Anomalía de la onda ST-T* y *2% hipertrofia ventricular*.
+
+-   El *45% de los pacientes con resultado normal* tienen alta posibilidad de sufrir ataques cardíacos, aproximadamente el *60% de los pacientes con anomalía de la onda ST-T* tienen alta probabilidad de sufrirlos y un *25% de pacientes con hipertrofia ventricular* también tienen alta probabilidad de sufrirlos.
+
+-   La distribución de la variable **arterias coronarias obstruidas (caa)** es *59% pacientes sin obstrucción en las coronarias*, *21% pacientes con una coronaria obstruida*, *13% pacientes con dos coronarias obstruidas* y *7% con tres coronarias obstruidas*.
+
+-   El *70% de los pacientes sin obstrucción en las coronarias* tiene alta probabilidad de sufrir ataques cardíacos y *menos del 30% de los pacientes con una o más coronarias obstruidas* también tienen alta posibilidad de sufrirlos. **Este resultado es contrario a lo que se espera, ya que los pacientes sin obstrucción tienen mayor probabilidad de padecer el ataque cardíaco que los que tienen una o más coronarias obstruidas.**
+
+Continuamos observando las distribuciones de las variables *age* y *trtbps*.
+
+```{r message= FALSE, warning=FALSE}
+g7 <- ggplot(misDatos, aes(x=output, y=age, fill=sex))+ geom_boxplot() + ggtitle("Resultado por Edad")
+
+g8 <- ggplot(misDatos, aes(x=output, y=trtbps, fill=sex))+ geom_boxplot() + ggtitle("Resultado por presión")
+
+grid.arrange(g7,g8,ncol=2)
+```
+
+**Observaciones:**
+
+-   La edad de las mujeres es mayor a la de los hombres según la media de los datos.
+
+-   Los *hombres* tienen mayor probabilidad de sufrir ataques cardíacos si tiene más de *50 años*. En cambio, las *mujeres* tienen mayor probabilidad de sufrirlos si tienen más de *55 años*.
+
+-   Respecto a la **presión arterial (trtbps)** se observa que *puede no existir diferencia significativa entre la presión arterial de hombres y mujeres*.
+
+-   La variabilidad de la presión arterial entre hombres y mujeres es similar.
+
+Continuamos observando las distribución de la variable *chol*.
+
+```{r message= FALSE, warning=FALSE}
+ggplot(misDatos, aes(x=output, y=chol, fill=sex)) + geom_boxplot() + ggtitle("Resultado por nivel de colesterol")
+```
+
+**Observaciones:**
+
+-   Las mujeres presentan un nivel de colesterol más alto que los hombres.
+
+-   La distribución del nivel de colesterol de las mujeres tiene mayor variabilidad que la de los hombres.
+
+Finalmente, se observará la distribución de las variables discretizadas *pa* y *nc*
+
+```{r message= FALSE, warning=FALSE}
+g9 <- ggplot(misDatos,aes(pa,fill=output))+geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="Presión Arterial", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Presión Arterial por resultado")
+
+g10 <- ggplot(misDatos,aes(nc,fill=output))+geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) + labs(x="NIvel de colesterol", y="Porcentaje") + guides(fill=guide_legend(title="")) + scale_fill_manual(values=c("#4b9130","#a13646")) + ggtitle("Nivel de colesterol por resultado")
+
+grid.arrange(g9,g10,ncol=2)
+```
+
+**Observaciones:**
+
+-   La distribución de la **variable presión arterial (pa)** es 20% normal, 25% Elevada, 23% Hipertensión nivel 1, 31% Hipertensión nivel 2 y 1% Crisis de hipertensión.
+
+-   La distribución de la **variable nivel de colesterol (nc)** es 17% deseable, 32% alta, y 51% muy alta.
+
+-   Los gráficos anteriores sugieren que el aumento en la presión arterial y el aumento en el nivel de colesterol aumentan la probabilidad de sufrir un infarto. Sin embargo, esto debe ser confirmado en los test estadísticos a realizar en el siguiente apartado.
+
+## Diferencia entre la presión arterial de hombres y mujeres
+
+Sea $\mu_h$ la media de la presión arterial en los hombres y $\mu_m$ en las mujeres, la hipótesis nula ($H_0$) y alternativa ($H_1$) son:
+
+-   $H_0$ = $\mu_h$ $=$ $\mu_m$
+-   $H_1$ = $\mu_h$ $\neq$ $\mu_m$
+
+Para la selección del estadístico de prueba se toman en cuenta las siguientes consideraciones:
+
+-   El contraste es sobre la media de dos muestras son independientes con varianzas desconocidas.
+
+-   El test es bilateral por la derecha.
+
+A continuación, se evaluará la normalidad de los datos.
+
+```{r message= FALSE, warning=FALSE}
+#presión arterial de las mujeres
+paM = misDatos$trtbps[misDatos$sex == 0] 
+#presión arterial de los hombres
+paH = misDatos$trtbps[misDatos$sex == 1]
+#impresión del número de observaciones
+c(length(paM), length(paH))
+```
+
+**observaciones:**
+
+-   Las muestras tienen 96 y 207 datos respectivamente, por tanto; **son muestras grandes (mayores a 30) y al aplicar el Teorema del límite central concluimos que las dos muestras siguen un distribución normal.**
+
+-   Debido a la normalidad de los datos se debe aplicar un **test paramétrico**.
+
+**Evaluación de la homoscedasticidad**. Sea $\sigma_H^2$ la varianza de la presión arterial para los hombres y $\sigma_M^2$ para las mujeres, hipótesis nula ($H_0$) y alternativa ($H_1$) son:
+
+-   $H_0$: $\sigma_H^2$ $=$ $\sigma_M^2$
+
+-   $H_1$: $\sigma_H^2$ $\neq$ $\sigma_M^2$
+
+```{r message= FALSE, warning=FALSE}
+var.test(paH, paM)
+```
+
+**observaciones:**
+
+-   El **f observado** es 0.74412 y cae dentro de la región de aceptación para la razón de varianzas [0.52095, 1.03949], por tanto, se debe aceptar la hipótesis nula.
+
+-   El **valor p** del estadístico de prueba es **0.08328**, es mayor al nivel de significancia (0.05) por lo que no hay evidencia para rechazar la hipótesis nula. Por tanto, se concluye que **las varianzas son iguales** con un nivel de confianza del 95%.
+
+> Para comprobar la diferencia entre la presión arterial de hombres y mujeres se realizará un contraste de medias bilateral entre dos muestras independientes con varianzas desconocidas pero iguales.
+
+```{r  message= FALSE, warning=FALSE}
+t.test(paH,paM,var.equal=TRUE)
+```
+
+**observaciones:**
+
+-   El **t observado** es -0.98649 y cae dentro de la región de aceptación [-6.39835, 2.1254], por tanto, se debe aceptar la hipótesis nula.
+
+-   El **valor p** del estadístico de prueba es **0.3247**, es mayor al nivel de significancia (0.05) por lo que no hay evidencia para rechazar la hipótesis nula. Por tanto, se concluye que **las medias de la presión arterial son iguales** con un nivel de confianza del 95%.
+
+> Se reafirma que no existe diferencia significativa en la presión arterial entre hombres y mujeres, tal como se observó en el grafico titulado *Resultado por presión*.
+
+## Asociación entre el tipo de angina y el resultado del electrocardiograma
+
+Se realizará un contraste de hipótesis de datos categóricos.
+
+Sea $H_0$ la hipótesis nula y $H_1$ la hipótesis alternativa, tenemos:
+
+-   $H_0$: el tipo de angina y el resultado del electrocardiograma son variables independientes
+
+-   $H_1$: existe una relación entre el tipo de angina y el resultado del electrocardiograma.
+
+Primero se creará una tabla de contingencia entre las dos variables, luego se aplicará la función **chisq.test** que realiza las siguientes tareas:
+
+-   Calcula los valores esperados para cada celda de la tabla bajo la suposición de independencia.
+
+-   Calcula: el estadístico de chi-cuadrado, los grados de libertad y el valor p
+
+```{r message= FALSE, warning=FALSE}
+#creación de la tabla de contingencia.
+t <- table(misDatos$cp, misDatos$restecg)
+#impresión de la tabla
+t
+#contraste de variables categóricas
+chisq.test(t, correct = TRUE)
+```
+
+**Observaciones:**
+
+-   El **chi observado** es 9.6878 y los grados de libertad son 6.
+
+-   El **valor p** del estadístico de prueba es **0.1384**, es mayor al nivel de significancia (0.05) por lo que no hay evidencia para rechazar la hipótesis nula. Por tanto, se concluye que **las variables son independientes** con un nivel de confianza del 95%.
+
+> No existe asociación entre el tipo de angina y el resultado del electrocardiograma.
+
+## ¿El tipo de angina que padece un paciente tiene un efecto en su presión arterial?
+
+Sea $\mu_0$ ... $\mu_3$ la presión arterial de los pacientes según el tipo de angina que padece, la hipótesis nula ($H_0$) y alternativa ($H_1$) son:
+
+-   $H_0$: $\mu_0 = \mu_1 = \mu_2 = \mu_3 = 0$
+
+-   $H_1$: $\mu_i \neq \mu_j$ para algún $i \neq j$
+
+Para poder aplicar un análisis ANOVA es necesario que se cumpla la normalidad y la homocedasticidad en los datos. En caso contrario se debe aplicar un test no paramétrico basado en rangos.
+
+**Evaluado la normalidad de los datos**
+
+```{r message= FALSE, warning=FALSE}
+#revisando la cantidad de datos para clase
+d1 <- misDatos$trtbps[misDatos$cp==0]
+d2 <- misDatos$trtbps[misDatos$cp==1]
+d3 <- misDatos$trtbps[misDatos$cp==2]
+d4 <- misDatos$trtbps[misDatos$cp==3]
+#impresión del número de datos por clase.
+c(length(d1),length(d2),length(d3),length(d4))
+```
+
+**Observación**
+
+-   Los datos correspondientes a las clases: *asintomático*, *angina típica* y *angina atípica* presentan normalidad por el Teorema del Límite Central. Sin embargo, debemos evaluar la normalidad en el conjunto de datos *dolor no anginoso*.
+
+```{r message= FALSE, warning=FALSE}
+#evaluando normalidad en dolor no anginoso
+qqnorm(d4)
+qqline(d4)
+```
+
+**Observación**
+
+-   El gráfico Q-Q muestra que los datos están ligeramente desviados de la línea de referencia. Para mayor certeza se realizará el **test de Shapiro** sobre los datos.
+
+```{r  message= FALSE, warning=FALSE}
+#aplicamos el test de shapiro
+shapiro.test(d4)
+```
+
+-   El **valor p** del estadístico de prueba es **0.4987** es mayor al nivel de significancia (0.05), por lo que se acepta la hipótesis nula, que existe normalidad en los datos.
+
+**Evaluando la homocedasticidad**
+
+Para evaluar la homocedasticidad se aplicará el *test de bartlett*.
+
+```{r  message= FALSE, warning=FALSE}
+bartlett.test(trtbps~cp,data=misDatos)
+```
+
+**observación**
+
+-   El **valor p** del estadístico de prueba es **0.5075** es mayor al nivel de significancia (0.05), por lo que se acepta la hipótesis nula, las varianzas son iguales.
+
+> se cumplen las condiciones para realizar un test ANOVA
+
+Para continuar se ajustará el modelo y se obtendrá la tabla ANOVA
+
+```{r message= FALSE, warning=FALSE}
+# ajuste del modelo
+r <- lm(trtbps~cp, data=misDatos)
+# obtención de la tabla anova
+taov<-anova(r)
+# impresión de la tabla anova
+taov
+```
+
+**Observación:**
+
+-   El **valor p** del estadístico de prueba es **0.0344** es menor al nivel de significancia (0.05), por tanto, se rechaza la hipótesis nula y se acepta la hipótesis alternativa ya que existe por lo menos un grupo donde se ve afectado la presión arterial por según el tipo de angina.
+
+Para tener una representación visual del análisis se creará un gráfico de cajas entre las dos variables.
+
+```{r message= FALSE, warning=FALSE}
+ggplot(misDatos, aes(x=cp, y=trtbps, fill=cp)) + geom_boxplot() + ggtitle("Presión arterial por tipo de angina")
+```
+
+**Observación:**
+
+-   Se observa que la presión arterial es mayor cuando el tipo de angina es **dolor no anginoso**.
+
+> El tipo de angina tiene un efecto significativo en la presión arterial cuando toma el valor *dolor no anginoso*.
+
+## Regresión logística multivariante
+
+Para finalizar este apartado se analizará ¿Cómo influyen la edad, el sexo, el colesterol, la presión arterial y la glucemia en los ataques cardíacos?
+
+Lo primero es dividir el conjunto de datos dos subconjuntos uno para entrenamiento y otro para prueba.
+
+```{r FALSE, warning=FALSE}
+set.seed(123)
+idx <- sample(1:nrow(misDatos),nrow(misDatos)*0.8)
+#conjunto de entrenamiento
+train <- misDatos[idx,] 
+#conjunto de prueba
+test <- misDatos[-idx,] 
+#revisión de la proporción de registros por clase de la variable output
+round(prop.table(table(train$output)),2) #proporción en el conjunto de entrenamiento
+round(prop.table(table(test$output)),2) #proporción en el conjunto de prueba
+```
+
+**Observación**
+
+> Los conjuntos de datos de entrenamiento y prueba mantienen las mismas proporciones que el conjunto de datos original para las dos clases de la variable respuesta (output), por tanto, son conjuntos de datos representativos.
+
+Para continuar se creará un primer modelo con las variables: edad, sexo, colesterol, presión arterial y glucemia.
+
+```{r message= FALSE, warning=FALSE}
+#modelo 1
+m1 <- glm(output ~ age + sex + chol + fbs + trtbps, binomial(link = "logit"), train)
+summary(m1)
+```
+
+**observaciones**
+
+-   se observa que las variables *edad (age)* y *sexo (sex)* son significativas su **valor p** es menor a **0.01** y **0.001** respectivamente. En cuanto a las variables *colesterol (chol)*, *presión arterial (trtbps)* y la *glucemia (fbs)* no son significativas *por lo que deben ser eliminadas del modelo*.
+
+> Las variables nivel de colesterol, presión arterial y glucemia no tienen un efecto significativo en la predicción de sufrir ataques cardíacos.
+
+Para continuar se añadirán al modelo anterior las variables de *tipo de angina (cp)*, *resultado del electrocardiograma (restecg)* y el *número de coronarias obstruidas (caa)*
+
+```{r message= FALSE, warning=FALSE}
+m2 <- glm(output ~ age + sex + cp + restecg + caa, binomial(link = "logit"), train)
+summary(m2)
+```
+
+**observaciones**
+
+-   se observa que las variables *sexo (sex)* sigue siendo significativa, sin embargo, la variable *edad (age)* deja de ser significativa.
+
+-   La variable *tipo de angina (cp)* y *número de coronarias obstruidas (caa)* también son significativas su **valor p** es menor a **0.001**. En cuanto a las variables *resultado del electrocardiograma (restecg)*, no es significativa *por lo que debe ser eliminada del modelo*.
+
+> Las variables sexo, tipo de angina y número de coronarias obstruidas son significativas para predecir la posibilidad de sufrir un ataque cardíaco
+
+El modelo final sería:
+
+```{r message= FALSE, warning=FALSE}
+m3 <- glm(output ~ sex + cp + caa, binomial(link = "logit"), train)
+summary(m3)
+```
+
+**Observaciones:**
+
+-   La variable *tipo de angina (cp)* es un factor de riesgo cuando toma los valores de: **angina típica**, **angina atípica** y **dolor no anginoso**, ya que sus coeficientes son negativos.
+
+-   La variable *sexo (sex)* se convierte en protección si el paciente es *hombre*, ya que su coeficiente es negativo.
+
+-   La variable *número de coronarias obstruidas (caa)* se convierte en protección cuando su valor es distinto de cero, ya que su coeficiente es negativo.
+
+Para continuar se determinar los ODDs ratios de estas variables.
+
+```{r message= FALSE, warning=FALSE}
+#calcular el exponente de los coeficientes
+round(exp(coef(m3)),2)
+```
+
+**Observaciones:**
+
+-   Si el paciente es **hombre** tiene un *24%* menos de probabilidad de sufrir un ataque cardíaco, ya que la variable sexo es de protección.
+
+-   Si el paciente padece **angina típica** es 11.12 veces más probable de sufrir un ataque cardíaco, respecto a si el paciente fuera **asintomático**.
+
+-   Si el paciente padece **angina atípica** es 7.75 veces más probable de sufrir un ataque cardíaco, respecto a si el paciente fuera **asintomático**.
+
+-   Si el paciente es **dolor no anginoso** es 6 veces más probable de sufrir un ataque cardíaco, respecto a si el paciente fuera **asintomático**.
+
+-   Si el paciente tiene **una o más coronarias obstruidas** tiene un **33%** menos de probabilidad de sufrir un ataque cardíaco, ya que la variable es de protección.
+
+Para continuar el análisis se validará el modelo. La clase de interés de la variable respuesta es **Probabilidad alta de ataque cardíaco** (1).
+
+```{r message= FALSE, warning=FALSE}
+#predicción de la variable respuesta
+valores <- predict(m3, test, type ="response")
+#si la probabilidad es mayor o igual a 0.7 entonces el paciente puede sufrir ataque cardíaco 
+valoresNormalizados <- ifelse(valores >= 0.7, 1,0)
+
+#validación del modelo
+real <- factor(test$output, levels = c(1,0))
+prediccion <- factor(valoresNormalizados, levels = c(1,0))
+#matriz de confusión
+CrossTable(real,prediccion, prop.t = FALSE, prop.r= FALSE, prop.c= FALSE, prop.chisq = FALSE)
+
+#medidas del modelo
+sensibilidad = 29/32
+espeficidad = 25/29
+precision = 29/33
+exactidud = (29+25)/61
+f1Score = 2*precision*sensibilidad/(precision+sensibilidad)
+#impresión de medidas
+round(c(sensibilidad,espeficidad,precision,exactidud,f1Score),2)
+```
+
+**observaciones:**
+
+-   El conjunto de prueba tiene 61 observaciones, 33 de la clase *Probabilidad alta de ataque cardíaco* (1) y 28 de la clase *Baja probabilidad de ataque cardíaco* (0).
+
+-   La sensibilidad del modelo es de 91% lo que indica que es capaz de identificar correctamente 9 instancias positivas de cada 10.
+
+-   La especificidad del modelo es de 86% lo que indica que es capaz de identificar correctamente 8.6 instancias negativas de cada 10.
+
+-   La precisión del modelo es de 88% lo que indica que tiene una proporción razonable para identificar las instancias positivas correctamente.
+
+-   Tanto la exactitud del modelo como el F1-score para el modelo, es de 89% lo que indica que el modelo es aceptable.
+
+> En resumen, el modelo tiene un rendimiento aceptable y puede utilizarse para predecir la variable de respuesta.
+
+Finalmente, se graficará la curva ROC y se calculará el área bajo la curva.
+
+```{r message= FALSE, warning=FALSE}
+library(pROC)
+#calculo del roc
+groc <- roc(test$output,valoresNormalizados)
+#impresión del gráfico.
+plot.roc(groc, print.auc=T, print.thres = "best", col="blue", xlab="1-Especificidad", ylab="Sensibilidad")
+```
+
+**Observaciones**
+
+-   El área bajo la curva (AUC) es mayor a 0.886, esto significa que el **modelo discrimina bastante bien**.
+
+-   El punto de corte (0.893, 0.879) es el que proporciona mejor balance entre la sensibilidad y la tasa de falsos positivos (1-especificidad)
+
+> Se refuerza la conclusión que el modelo es aceptable y se puede utilizar para predecir la variable respuesta.
+
+```{r message= FALSE, warning=FALSE}
+#Guardar la base datos final
+write.csv(misDatos, "data/heart_clean.csv", row.names = FALSE)
+```
+
+# Resolución del problema
+
+1.  El análisis exploratorio de los datos permitió identificar variables relevantes para el problema, como la edad, el sexo, la presión arterial, el nivel de colesterol, el tipo de angina, el electrocardiograma y la cantidad de coronarias obstruidas.
+
+2.  Se identificaron valores atípicos en las variables edad, presión arterial, colesterol y cantidad de coronarias obstruidas. Se realizó una transformación de los valores atípicos en la variable "caa" y se imputaron los valores faltantes utilizando el método k-NN.
+
+3.  Se analizó la distribución de las variables en relación a la probabilidad de sufrir ataque cardíaco. Se crearon gráficos y tablas de frecuencia para observar la distribución respecto a la variable de respuesta. Sin embargo, las tablas de frecuencia no se incluyeron en esta documentación para no hacerla demasiado extensa.
+
+4. Se realizó una contraste de hipótesis para determinar si existe diferencia significativa entre la presión arterial de hombres y mujeres
+
+5.  Se realizó una prueba estadística para evaluar la asociación entre variables categóricas, como el tipo de angina y el electrocardiograma. No se encontró una asociación significativa entre estas variables.
+
+6. Se realizó un prueba de ANOVA para evaluar el efecto del tipo de angina en la presión arterial. 
+
+7.  Se realizó un análisis de regresión logística para predecir la probabilidad de sufrir un ataque cardíaco. Se ajustaron varios modelos utilizando diferentes conjuntos de variables predictoras. El modelo final incluyó las variables sexo, tipo de angina y cantidad de coronarias obstruidas.
+
+8.  El modelo de regresión logística final mostró un buen ajuste y se utilizaron los coeficientes estimados para calcular las probabilidades de sufrir un ataque cardíaco.
+
+9.  Se realizó una predicción utilizando el conjunto de prueba y se comparó con los valores reales. Se construyó una matriz de confusión y se calcularon medidas de evaluación del modelo, como sensibilidad, especificidad y precisión.
+
+**Conclusiones:**
+
+Los resultados permiten responder al problema planteado de predecir la probabilidad de sufrir un ataque cardíaco. El modelo de regresión logística final mostró un buen rendimiento en la predicción, con una alta sensibilidad y especificidad. Sin embargo, es importante tener en cuenta que estos resultados se basan en el conjunto de datos utilizado y pueden variar en diferentes poblaciones o contextos. Es recomendable validar el modelo en nuevos conjuntos de datos antes de su aplicación en la práctica clínica.
+
+En respuesta a las preguntas de investigación basadas en el desarrollado en la presente práctica se debe mencionar que:
+
+1.  ¿Existe una diferencia significativa en la presión arterial entre hombres y mujeres?
+    -   Se evaluó, la normalidad de los datos, señalando que son muestras grandes (mayores a 30) y al aplicar el Teorema del límite central concluimos que las dos muestras (hombres y mujeres) siguen una distribución normal.
+    -   Para analizar la diferencia significativa en la presión arterial entre hombres y mujeres, se realizó una prueba t de student para dos muestras independientes con varianzas desconocidas e iguales.
+    -   Según los resultados obtenidos, no se encontró una diferencia significativa en la presión arterial entre hombres y mujeres (p-valor \> 0.05).
+    -   Por lo tanto, no se puede afirmar que exista una diferencia significativa en la presión arterial entre hombres y mujeres.
+    
+2.  ¿Hay una asociación entre el tipo de angina y el resultado del electrocardiograma?
+    -   Para evaluar la asociación entre el tipo de angina y el resultado del electrocardiograma, se realizó una prueba de chi-cuadrado.
+    -   Los resultados del análisis indican que no existe asociación entre el tipo de angina y el resultado del electrocardiograma.
+    -  Por lo tanto, se afirma que las dos variables son independientes.
+    
+    
+3.  ¿El tipo de angina que padece un paciente tiene un efecto en su presión arterial?
+    -   Para determinar si el tipo de angina que padece un paciente tiene un efecto en su presión arterial, se realizó un análisis de varianza (ANOVA).
+    -   Según los resultados obtenidos, se encontró que el tipo de angina tiene un efecto significativo en la presión arterial para uno de los grupos (p-valor \< 0.05).
+    -   Por lo tanto, se puede concluir que el **dolor no anginoso** que padece un paciente tiene un efecto en su presión arterial.
+    
+4.  ¿Cómo influyen la edad, el sexo, el colesterol, la presión arterial y la glucemia en los ataques cardíacos?
+    -   El tipo de angina tiene un efecto significativo en la presión arterial cuando toma un valor distinto de *asintómatico*.
+    -   Las variables nivel de colesterol, presión arterial y glucemia no tienen un efecto significativo en la predicción de sufrir ataques cardíacos.
+    -   Las variables sexo, tipo de angina y número de coronarias obstruidas son significativas para predecir la posibilidad de sufrir un ataque cardíaco.
+    - Finalmente, se determinó que el tipo de angina es un factor de riesgo y el número de arterias coronorias obsturidas es un factor de protección, al igual que el sexo.
