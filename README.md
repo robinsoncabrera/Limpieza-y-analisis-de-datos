@@ -20,7 +20,7 @@ Este repositorio incluye los siguientes archivos:
   * `/source/heart.html`: archivo resultante del procesamiento del documento R Mardown utilizado para el desarrollo de la práctica.
   * `/source/heart.Rmd`: documento de R Markdown, contiene el código para el análisis de los datos.
   * `/dataset/heart.csv`: conjunto de datos (original) sobre pacientes con probabilidad de sufrir ataques cardíacos. La base de datos cuenta con 303 observaciones y 14 variables.
-  * `/dataset/heart_clean.csv`: conjunto de datos resultante, utilizado para el desarrollo de la práctica.
+  * `/dataset/heart_clean.csv`: conjunto de datos resultante, utilizado para el desarrollo de la práctica. La base cuenta con 303 observaciones y 11 variables.
 
 
 ## Vídeo de presentación
